@@ -79,7 +79,7 @@ class ConfigWidget(QWidget):
             item = self.tag_details.list_widget.item(i)
             detail = self.tag_details.stack_widget.widget(i)
 
-            tag_name = item.text()
+            tag_name = item.text().lower()
             tag_widget = detail
 
             #* Get the name aliases
