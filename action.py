@@ -1,13 +1,9 @@
-from calibre.gui2 import question_dialog, warning_dialog, info_dialog
+from . import tag_util
+from calibre.gui2 import info_dialog, question_dialog, warning_dialog
 from calibre.gui2.actions import InterfaceAction
 from calibre.utils.config import JSONConfig
-from PyQt5.QtWidgets import QMessageBox
+from qt.core import QToolButton, QMenu
 import logging
-
-try:
-    from qt.core import QToolButton, QMenu
-except ImportError:
-    from PyQt5.Qt import QToolButton, QMenu
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,6 +39,7 @@ class TagSyncPlugin(InterfaceAction):
         self.create_menu_action(self.menu, "Tag Sync selected", "Tag Sync selected", icon=None, shortcut=None, description='Run Tag Sync for selected books', triggered=self.sync_for_selected_books, shortcut_name=None, persist_shortcut=False)
         self.create_menu_action(self.menu, "Tag Sync All", "Tag Sync All", icon=None, shortcut=None, description='Run Tag Sync for all books', triggered=self.sync_for_all_books, shortcut_name=None, persist_shortcut=False)
         self.create_menu_action(self.menu, "Tag Sync settings", "Tag Sync settings", icon=None, shortcut=None, description=None, triggered=lambda: self.interface_action_base_plugin.do_user_config(self.gui), shortcut_name=None, persist_shortcut=False)
+        self.create_menu_action(self.menu, "Test", "Test", icon=None, shortcut=None, description=None, triggered=lambda: tag_util.test(self.gui), shortcut_name=None, persist_shortcut=False)
 
     def apply_settings(self):
         #* Reset the prefs variable to the new settings
@@ -65,48 +62,19 @@ class TagSyncPlugin(InterfaceAction):
         self.tag_sync(selected_books)
 
     def tag_sync(self, selected_books: list):
+        db = tag_util.get_db(self.gui)
+
         #* If no books are selected, show a warning
         if not selected_books:
             warning_dialog(self.gui, _('No Books Selected'), _('Please select books to apply the tag.'), show=True)
             return
 
-        #* Get the current database
-        db = self.gui.current_db.new_api
+        tag_rules = tag_util.TagRules.build_tag_rules(self.gui)
 
-        #* Get the list of custom columns to sync from the preferences
-        column_list = self.prefs['column_list']
-
-        if len(column_list) == 0:
-            #* If no custom columns are set, show a warning
-            warning_dialog(self.gui, _('No Custom Columns'), _('Please setup the custom columns to sync in the settings'), show=True)
-            return
-
-        for column_name in column_list:
-            try:
-                #* Get the list of all characters from the database
-                all_column_tags = self.get_all_elements_from_custom_column(column_name)
-            except ValueError as e:
-                #* Handle the case where the custom column doesn't exist
-                warning_dialog(self.gui, _('Custom Column Error'), str(e), show=True)
-                return
-
-            for book_id in selected_books:
-                book = db.get_metadata(book_id)
-                current_tags = book.tags
-                current_sub_tags = book.get(column_name, [])
-
-                for tag in current_tags:
-                    found_sub_tag = str_iter_compare(tag, all_column_tags)
-                    if found_sub_tag is not None:
-                        current_tags.remove(tag)
-                        if not found_sub_tag in current_sub_tags:
-                            current_sub_tags.append(found_sub_tag)
-
-                book.tags = sorted(current_tags)
-                book.set(column_name, current_sub_tags)
-
-                #* Update the tags in the database
-                db.set_metadata(book_id, book)
+        for book_id in selected_books:
+            book = db.get_metadata(book_id)
+            book = tag_rules.apply_to_book(book)
+            db.set_metadata(book_id, book)
 
         info_dialog(self.gui, _('Tag Sync'), _('Tag Sync completed successfully.'), show=True)
 

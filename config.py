@@ -1,16 +1,19 @@
 from calibre.gui2 import question_dialog, warning_dialog
 from calibre.utils.config import JSONConfig
+import bisect
+
+from . import tag_util
 
 try:
     from qt.core import (Qt, QWidget, QGridLayout, QLabel, QPushButton, QUrl,
                           QGroupBox, QComboBox, QVBoxLayout, QCheckBox,
                           QLineEdit, QTabWidget, QAbstractItemView,
-                          QTableWidget, QHBoxLayout, QSize, QToolButton)
+                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget)
 except ImportError:
     from PyQt5.Qt import (Qt, QWidget, QGridLayout, QLabel, QPushButton, QUrl,
                           QGroupBox, QComboBox, QVBoxLayout, QCheckBox,
                           QLineEdit, QTabWidget,QAbstractItemView,
-                          QTableWidget, QHBoxLayout, QSize, QToolButton)
+                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget)
 
 #* This is where all preferences for this plugin will be stored
 #* Remember that this name (i.e. plugins/interface_demo) is also
@@ -26,82 +29,218 @@ prefs.defaults['column_list'] = list()
 class ConfigWidget(QWidget):
     def __init__(self, plugin_action):
         QWidget.__init__(self)
+
         self.plugin_action = plugin_action
+
+        #* Create the main layout elements
         self.main_layout = QVBoxLayout()
+        self.tabs = QTabWidget()
+        self.tag_details = SearchableElementEditor(self)
+
+
+        # Populate list and stack
+        self.populate_tags()
+
+        # self.column_list = ListEdit(self)
+        # self.main_layout.addWidget(self.column_list)
+
+        #* Link the layouts elements
+        # self.tabs.addTab(self.main_layout, "Main Layout")
+        self.tabs.addTab(self.tag_details, "Tag Details")
+
+        self.main_layout.addWidget(self.tabs)
+
         self.setLayout(self.main_layout)
 
-        self.column_list = ListEdit()
-        self.main_layout.addWidget(self.column_list)
+    def populate_tags(self):
+        db = tag_util.get_db(self.plugin_action.gui)
+
+        tags = tag_util.Tag.build_tags(db)
+        for tag in tags:
+            tag_widget = TagEdit(self)
+            tag_widget.title.setText(f'Settings for tag: \'{tag.display_name}\'\nfrom column: \'{tag.collection_name}\'')
+
+            for name_alias in tag.name_aliases:
+                tag_widget.name_aliases.add_row(value=name_alias)
+
+            for add_tag in tag.add_tags:
+                tag_widget.add_tags.add_row(value=add_tag)
+
+            self.tag_details.add_element(tag.display_name, tag_widget)
 
     def save_settings(self):
-        self.column_list.save_settings()
+        #* Save the settings for the tag details
+
+        #* Cop the tags from the prefs
+        tags = prefs.get('tags', {}).copy()
+
+        #* Save the settings for the tag details
+        for i in range(self.tag_details.list_widget.count()):
+            item = self.tag_details.list_widget.item(i)
+            detail = self.tag_details.stack_widget.widget(i)
+
+            tag_name = item.text()
+            tag_widget = detail
+
+            #* Get the name aliases
+            tag_name_aliases = list()
+            for name_alias in tag_widget.name_aliases.edits:
+                if name_alias.text().strip() != '':
+                    tag_name_aliases.append(name_alias.text().strip())
+
+            #* Get the add tags
+            tag_add_tags = list()
+            for add_tag in tag_widget.add_tags.edits:
+                if add_tag.text().strip() != '':
+                    tag_add_tags.append(add_tag.text().strip())
+
+            #* Save the tag alias, if there are none, remove the tag from the prefs
+            if len(tag_name_aliases) > 0:
+                tags.setdefault(tag_name, dict())['name_aliases'] = tag_name_aliases
+            else:
+                tags.setdefault(tag_name, dict()).pop('name_aliases', None)
+
+            #* Save the add tags, if there are none, remove the tag from the prefs
+            if len(tag_add_tags) > 0:
+                tags.setdefault(tag_name, dict())['add_tags'] = tag_add_tags
+            else:
+                tags.setdefault(tag_name, dict()).pop('add_tags', None)
+
+            #* If there are no name aliases and no add tags, remove the tag from the prefs
+            if len(tag_name_aliases) <= 0 and len(tag_add_tags) <= 0:
+                tags.pop(tag_name, None)
+
+        #* Reassign the tags to the prefs, else the save to disc is not triggered
+        prefs['tags'] = tags
+
 
     def validate(self):
-        #* Get the list of custom columns to sync from the preferences
-        column_list = [column_name.text() for column_name in self.column_list.column_edits if column_name.text().strip() != '']
-
-        #* Validate column names
-        if not all(column_name in self.plugin_action.gui.library_view.model().custom_columns for column_name in column_list):
-            warning_dialog(self, 'Invalid Column name', 'All custom columns must be defined in the setting \'#{column_name}\'', show=True)
-            return False
-
-        #* Validate column types
-        #* All custom columns must be of type 'text'
-        if not all(self.plugin_action.gui.library_view.model().custom_columns.get(column_name, dict()).get('datatype', '') == 'text' for column_name in column_list):
-            warning_dialog(self, 'Invalid Column type', 'All custom columns must be of type "text"\nEither normal text or comma-separatedt', show=True)
-            return False
-
         return True
 
-class ListEdit(QWidget):
+class SearchableElementEditor(QWidget):
     def __init__(self, parent=None):
-        super(ListEdit, self).__init__(parent)
-        self.setWindowTitle("List Edit")
-        self.setGeometry(0, 0, 400, 300)
+        super().__init__(parent)
 
-        #* Create a QVBoxLayout for the main layout
-        self.layout = QVBoxLayout(self)
+        #* create list of element labels
+        self.label_list: list[str] = list()
 
-        #* Create a QTableWidget
-        self.table = QTableWidget(self)
-        self.table.setColumnCount(1)
-        self.table.setHorizontalHeaderLabels(["Column Names"])
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setColumnWidth(0, 400);
-        self.layout.addWidget(self.table)
+        #* create the main layout elements
+        self.main_layout = QHBoxLayout()
+        self.search_box = QLineEdit()
+        self.search_box.setPlaceholderText("Search tags...")
 
-        #* Create a button to add new rows
+        self.list_widget = QListWidget()
+        self.stack_widget = QStackedWidget()
+
+        #* Hook search to filter
+        self.search_box.textChanged.connect(self.filter_list)
+
+        #* Hook selection to stack
+        self.list_widget.currentRowChanged.connect(self.stack_widget.setCurrentIndex)
+
+        #* Link the layouts elements
+        left_layout = QVBoxLayout()
+        left_layout.addWidget(self.search_box)
+        left_layout.addWidget(self.list_widget)
+
+        self.main_layout.addLayout(left_layout, 1)
+        self.main_layout.addWidget(self.stack_widget, 3)
+
+        self.setLayout(self.main_layout)
+
+    def add_element(self, label: str, widget):
+        #* Add a new item to the list and stack
+        index = bisect.bisect_left(self.label_list, label.lower())
+
+        self.list_widget.insertItem(index, label)
+        self.stack_widget.insertWidget(index, widget)
+        self.label_list.insert(index, label.lower())
+
+    def filter_list(self, text):
+        #* Filter the list based on the search text
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            item.setHidden(text.lower() not in item.text().lower())
+
+        #* If the current item is hidden, select the first visible item
+        selected_item = self.list_widget.currentItem()
+        if selected_item and selected_item.isHidden():
+            for i in range(self.list_widget.count()):
+                if not self.list_widget.item(i).isHidden():
+                    self.list_widget.setCurrentRow(i)
+                    break
+
+        #* Scroll to the selected item
+        selected_item = self.list_widget.currentItem()
+        if selected_item:
+            self.list_widget.scrollToItem(selected_item, QAbstractItemView.PositionAtCenter)
+
+
+class ListEdit(QWidget):
+    def __init__(self, parent=None, title:str = ''):
+        super().__init__(parent)
+
+        self.edits = list()
+
+        #* create the main layout elements
+        self.main_layout = QVBoxLayout(self)
+        self.title = QLabel(title)
+        self.list = QVBoxLayout(self)
         self.add_button = QPushButton("Add Row", self)
+
+        #* Connect the add button to the add_row method
         self.add_button.clicked.connect(self.add_row)
-        self.layout.addWidget(self.add_button)
 
-        self.column_edits = list()
+        #* Link the layouts elements
+        self.main_layout.addWidget(self.title)
+        self.main_layout.addLayout(self.list)
+        self.main_layout.addWidget(self.add_button)
 
-        #* Init data
-        data = prefs['column_list']
-        for d in data:
-            self.add_row(value=d)
-
-
-    def save_settings(self):
-        new_data = list()
-
-        for edit in self.column_edits:
-            if edit.text().strip() != '':
-                new_data.append(edit.text().strip())
-
-        prefs['column_list'] = new_data
+        self.setLayout(self.main_layout)
 
     def add_row(self, *, value:str = ''):
-        row_position = self.table.rowCount()
-        self.table.insertRow(row_position)
+        #* create the main layout elements
+        main_layout = QHBoxLayout(self)
+        column_name_edit = QLineEdit(value, self)
+        del_button = QPushButton("Del", self)
 
-        #* Create QLineEdit widgets for the new row
-        column_name_edit = QLineEdit(self)
-        column_name_edit.setText(value)
+        #* design the del button
+        del_button.setStyleSheet("background-color: red; color: white;")
 
-        #* Add the QLineEdit widgets to the table
-        self.table.setCellWidget(row_position, 0, column_name_edit)
+        #* Connect the del button
+        del_button.clicked.connect(lambda: (main_layout.removeWidget(column_name_edit),
+                                            self.edits.remove(column_name_edit),
+                                            column_name_edit.deleteLater(),
+                                            main_layout.removeWidget(del_button),
+                                            del_button.deleteLater(),
+                                            self.list.removeItem(main_layout),
+                                            main_layout.setParent(None),
+                                            main_layout.deleteLater()))
+
+        #* Link the layouts elements
+        main_layout.addWidget(column_name_edit, 5)
+        main_layout.addWidget(del_button, 1)
+
+        #* Add the QLineEdit widgets to the line
+        self.list.addLayout(main_layout)
 
         #* Add the QLineEdit widgets to the column_edits list
-        self.column_edits.append(column_name_edit)
+        self.edits.append(column_name_edit)
+
+
+class TagEdit(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        #* create the layout elements
+        self.main_layout = QVBoxLayout()
+        self.title = QLabel()
+        self.name_aliases = ListEdit(self, 'Name aliases')
+        self.add_tags = ListEdit(self, 'Add tags')
+
+        #* Link the layouts elements
+        self.main_layout.addWidget(self.title)
+        self.main_layout.addWidget(self.name_aliases)
+        self.main_layout.addWidget(self.add_tags)
+
+        self.setLayout(self.main_layout)
