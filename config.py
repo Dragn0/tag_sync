@@ -7,12 +7,12 @@ try:
     from qt.core import (Qt, QWidget, QGridLayout, QLabel, QPushButton, QUrl,
                           QGroupBox, QComboBox, QVBoxLayout, QCheckBox,
                           QLineEdit, QTabWidget, QAbstractItemView,
-                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget)
+                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget, QSpinBox)
 except ImportError:
     from PyQt5.Qt import (Qt, QWidget, QGridLayout, QLabel, QPushButton, QUrl,
                           QGroupBox, QComboBox, QVBoxLayout, QCheckBox,
                           QLineEdit, QTabWidget,QAbstractItemView,
-                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget)
+                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget, QSpinBox)
 
 #* This is where all preferences for this plugin will be stored
 #* Remember that this name (i.e. plugins/interface_demo) is also
@@ -22,7 +22,7 @@ except ImportError:
 prefs = JSONConfig('plugins/tag_sync')
 
 #* Set defaults
-prefs.defaults['column_list'] = list()
+prefs.defaults['columns'] = {'tags': {'include': True, 'prio': 0}}
 
 
 class ConfigWidget(QWidget):
@@ -72,7 +72,7 @@ class ConfigWidget(QWidget):
         #* Save the settings for the tag details
 
         #* Cop the tags from the prefs
-        tags = prefs.get('tags', {}).copy()
+        tags = dict()
 
         #* Save the settings for the tag details
         for i in range(self.tag_details.list_widget.count()):
@@ -83,8 +83,9 @@ class ConfigWidget(QWidget):
             tag_descriptor = tag_obj.get_descriptor()
             tag_widget = detail
 
-            #* Set display name
+            #* Set names
             tags.setdefault(tag_descriptor, dict())['display_name'] = tag_obj.display_name
+            tags.setdefault(tag_descriptor, dict())['name'] = tag_obj.name
 
             #* Get the name aliases
             tag_name_aliases = list()
@@ -267,52 +268,48 @@ class ColumnSelect(QWidget):
     def populate(self, gui: GUI):
         self.selections = dict()
 
-        #* Add tags
-        #* create the layout elements
-        layout = QHBoxLayout()
-        lable = QLabel('tags')
-        check = QCheckBox()
-
-        #check.stateChanged.connect(self.save)
-
-        self.selections['tags'] = check
-
-        #* Link the layouts elements
-        layout.addWidget(lable)
-        layout.addWidget(check)
-
-        self.main_layout.addLayout(layout)
-
         #* Add custom columns
-        for name, data in helper.get_custom_column(gui).items():
-            if data.get('datatype', '') != 'text':
-                continue
+        columns = dict()
+        columns['tags'] = None
+        columns.update(helper.get_custom_column(gui))
+        for name, data in columns.items():
+            if name != 'tags':
+                if data.get('datatype', '') != 'text':
+                    continue
 
             #* create the layout elements
             layout = QHBoxLayout()
             lable = QLabel(name)
             check = QCheckBox()
+            prio = QSpinBox()
 
             #check.stateChanged.connect(self.save)
 
-            self.selections[name] = check
+            self.selections[name] = { 'check': check, 'prio': prio}
 
             #* Link the layouts elements
             layout.addWidget(lable)
             layout.addWidget(check)
+            layout.addWidget(prio)
 
             self.main_layout.addLayout(layout)
 
         self.main_layout.addStretch()
 
-        for column in prefs['column_list']:
-            if column in self.selections:
-                self.selections[column].setChecked(True)
+        prefs_column = prefs.get('columns', dict())
+        for name, inputs in self.selections.items():
+            pref_data = prefs_column.get(name, dict())
+
+            inputs['check'].setChecked(pref_data.get('include', False))
+
+            inputs['prio'].setValue(pref_data.get('prio', 1))
 
     def save(self):
-        result = list()
-        for name, check in self.selections.items():
-            if check.isChecked():
-                result.append(name)
+        result = dict()
+        for name, data in self.selections.items():
+            result[name] = {
+                'include': data['check'].isChecked(),
+                'prio': data['prio'].value(),
+            }
 
-        prefs['column_list'] = result
+        prefs['columns'] = result

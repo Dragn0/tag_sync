@@ -1,8 +1,7 @@
-from . import helper
+from . import config, helper
 from calibre.db.cache import Cache as DB
 from calibre.ebooks.metadata.book.base import Metadata
 from calibre.gui2.ui import Main as GUI
-from calibre.utils.config import JSONConfig
 from dataclasses import dataclass
 from typing import Self, Optional
 
@@ -33,10 +32,10 @@ class Tag:
     def build_tags(cls, gui: GUI) -> list[Self]:
         db = helper.get_db(gui)
 
-        result: list[Self] = list()
+        results: list[Self] = list()
 
-        prefs = JSONConfig('plugins/tag_sync')
-        tag_settigns = prefs.get('tags', dict())
+        column_settings = config.prefs.get('columns', dict())
+        tag_settigns = config.prefs.get('tags', dict())
 
         #* Get the list of custom columns
         columns = helper.get_selected_columns(gui)
@@ -45,15 +44,35 @@ class Tag:
             for value_id, value_name in column_values:
                 tag = Tag(value_name, column, value_id)
 
-                for name_alias in tag_settigns.get(tag.get_descriptor(), dict()).get('name_aliases', list()):
-                    tag.name_aliases.append(name_alias)
+                tag.prio = column_settings.get(column, dict()).get('prio', 1)
 
-                for add_tag in tag_settigns.get(tag.get_descriptor(), dict()).get('add_tags', list()):
-                    tag.add_tags.append(add_tag)
+                #* Load data from Settings
+                for tag_setting_descriptor, tag_settings_data in tag_settigns.items():
+                    if tag.get_descriptor == tag_setting_descriptor or tag.name == tag_settings_data.get('name', ''):
+                        for name_alias in tag_settings_data.get('name_aliases', list()):
+                            if not name_alias in tag.name_aliases:
+                                tag.name_aliases.append(name_alias)
 
-                result.append(tag)
+                        for add_tag in tag_settings_data.get('add_tags', list()):
+                            if not add_tag in tag.add_tags:
+                                tag.add_tags.append(add_tag)
 
-        return result
+                #* Find duplicates
+                duplicate_found = False
+                for result in results:
+                    if tag.name == result.name:
+                        #* Duplicate found
+                        if tag.prio > result.prio:
+                            results.remove(result)
+                            results.append(tag)
+
+                        duplicate_found = True
+                        break
+
+                if not duplicate_found:
+                    results.append(tag)
+
+        return results
 
 @dataclass
 class TagRules:
@@ -63,9 +82,7 @@ class TagRules:
         self.tags: dict[str, Tag] = dict()
 
     def apply_to_book(self, book: Metadata) -> Metadata:
-        prefs = JSONConfig('plugins/tag_sync')
-
-        columns = prefs['column_list']
+        columns = config.prefs['columns']
 
         #* Get the list of all tags on the book
         current_display_tags: list[str] = list()

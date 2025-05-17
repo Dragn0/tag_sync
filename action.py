@@ -1,6 +1,5 @@
 from . import helper, tag_util
 from calibre.gui2.actions import InterfaceAction
-from calibre.utils.config import JSONConfig
 from qt.core import QToolButton, QMenu
 import logging
 
@@ -23,10 +22,6 @@ class TagSyncPlugin(InterfaceAction):
     action_spec = ('Tag Sync', None, 'Run Tag Sync for selected books', None)
     action_type = 'local'
 
-    #* Settings for this plugin
-    #* This is where all preferences for this plugin will be stored
-    prefs = JSONConfig('plugins/tag_sync')
-
     def genesis(self):
         #* Create Dialog helper
         helper.Dialog.create(self.gui)
@@ -44,9 +39,7 @@ class TagSyncPlugin(InterfaceAction):
         self.create_menu_action(self.menu, "Test", "Test", icon=None, shortcut=None, description=None, triggered=lambda: helper.test(self.gui), shortcut_name=None, persist_shortcut=False)
 
     def apply_settings(self):
-        #* Reset the prefs variable to the new settings
-        #* This is necessary to ensure that the new settings are used
-        self.prefs = JSONConfig('plugins/tag_sync')
+        pass
 
     def sync_for_selected_books(self):
         #* Get the selected books from the library view

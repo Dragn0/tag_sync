@@ -1,8 +1,7 @@
-from . import tag_util
+from . import config, tag_util
 from calibre.db.cache import Cache as DB
 from calibre.gui2 import info_dialog, question_dialog, warning_dialog, error_dialog
 from calibre.gui2.ui import Main as GUI
-from calibre.utils.config import JSONConfig
 from dataclasses import asdict
 from typing import Optional
 import json
@@ -20,8 +19,7 @@ def get_selected_columns(gui: GUI) -> list:
 
     column_names.append('tags')
 
-    prefs = JSONConfig('plugins/tag_sync')
-    return [name for name in column_names if name in prefs.get('column_list', list())]
+    return [name for name in column_names if name in config.prefs.get('columns', dict())]
 
 
 def get_all_field_values(db: DB, field_name: str) -> list[(int, str)]:
