@@ -4,8 +4,7 @@ from calibre.ebooks.metadata.book.base import Metadata
 from calibre.gui2.ui import Main as GUI
 from dataclasses import dataclass
 from typing import Self, Optional
-import json
-from dataclasses import asdict
+import re
 
 @dataclass
 class Tag:
@@ -23,6 +22,16 @@ class Tag:
         self.name           : str           = display_name.lower()
         self.name_aliases   : list[str]     = list()
         self.add_tags       : list[str]     = list()
+
+        #* Try spliting the display name into alias and add_part 'alias (add_part)'
+        #* and adding the parts to the lists
+        match = re.match(r"^([^\(]*?)\(([^\)]*?)\)\s*$", self.display_name)
+        if match:
+            part1 = match.group(1)
+            part2 = match.group(2)
+
+            self.name_aliases.append(part1.strip().lower())
+            self.add_tags.append(part2.strip())
 
     def is_part_of_sub_collection(self) -> bool:
         return self.collection_name != 'tags'
