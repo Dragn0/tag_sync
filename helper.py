@@ -21,7 +21,7 @@ def get_selected_columns(gui: GUI) -> list:
     column_names.append('tags')
 
     prefs = JSONConfig('plugins/tag_sync')
-    return [name for name in column_names if name in prefs['column_list']]
+    return [name for name in column_names if name in prefs.get('column_list', list())]
 
 
 def get_all_field_values(db: DB, field_name: str) -> list[(int, str)]:
