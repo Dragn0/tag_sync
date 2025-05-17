@@ -4,6 +4,8 @@ from calibre.ebooks.metadata.book.base import Metadata
 from calibre.gui2.ui import Main as GUI
 from dataclasses import dataclass
 from typing import Self, Optional
+import json
+from dataclasses import asdict
 
 @dataclass
 class Tag:
@@ -164,13 +166,13 @@ def add_add_tags_recursive(tag_rules: TagRules, tag: Tag, add_list: list[str], m
         for find_tag in tag_rules.tags.values():
             #* Test if the current tag is the right one
             if add_tag_name == find_tag.name or add_tag_name in find_tag.name_aliases:
-
                 #* Add found tag to add_list
                 if find_tag.name not in add_list:
                     add_list.append(find_tag.name)
                     add_add_tags_recursive(tag_rules, find_tag, add_list, max_recursion - 1) #* Recursion
-                    tag_found = True
-                    break
+
+                tag_found = True
+                break
 
         if not tag_found:
             #* Create new tag in the collection of the parent tag
