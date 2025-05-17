@@ -69,7 +69,7 @@ class TagSyncPlugin(InterfaceAction):
             warning_dialog(self.gui, _('No Books Selected'), _('Please select books to apply the tag.'), show=True)
             return
 
-        tag_rules = tag_util.TagRules.build_tag_rules(db)
+        tag_rules = tag_util.TagRules.build_tag_rules(self.gui)
 
         for book_id in selected_books:
             book = db.get_metadata(book_id)

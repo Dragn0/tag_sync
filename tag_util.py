@@ -26,13 +26,16 @@ class Tag:
         return self.collection_name != 'tags'
 
     @classmethod
-    def build_tags(cls, db: DB) -> list[Self]:
+    def build_tags(cls, gui: GUI) -> list[Self]:
+        db = get_db(gui)
+
         result: list[Self] = list()
+
         prefs = JSONConfig('plugins/tag_sync')
         tag_settigns = prefs.get('tags', dict())
 
         #* Get the list of custom columns
-        columns = prefs['column_list']
+        columns = get_selected_columns(gui)
         for column in columns:
             column_values = db.all_field_names(column)
             for column_value in column_values:
@@ -111,9 +114,9 @@ class TagRules:
         return book
 
     @classmethod
-    def build_tag_rules(cls, db: DB) -> Self:
+    def build_tag_rules(cls, gui: GUI) -> Self:
         tag_rules = TagRules()
-        tags = Tag.build_tags(db)
+        tags = Tag.build_tags(gui)
 
         for tag in tags:
             tag_rules.tags[tag.name] = tag
@@ -122,9 +125,7 @@ class TagRules:
 
 
 def test(gui: GUI):
-    db = get_db(gui)
-
-    tag_rules = TagRules.build_tag_rules(db)
+    tag_rules = TagRules.build_tag_rules(gui)
 
 
     test_value = asdict(tag_rules)
@@ -134,6 +135,14 @@ def test(gui: GUI):
 
 def get_custom_column(gui: GUI) -> dict:
     return gui.library_view.model().custom_columns
+
+def get_selected_columns(gui: GUI) -> list:
+    column_names: list = list(get_custom_column(gui).keys())
+
+    column_names.append('tags')
+
+    prefs = JSONConfig('plugins/tag_sync')
+    return [name for name in column_names if name in prefs['column_list']]
 
 def get_db(gui: GUI) -> DB:
     return gui.current_db.new_api

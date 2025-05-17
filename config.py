@@ -1,6 +1,7 @@
 from calibre.gui2 import question_dialog, warning_dialog
 from calibre.utils.config import JSONConfig
 import bisect
+from calibre.gui2.ui import Main as GUI
 
 from . import tag_util
 
@@ -36,16 +37,17 @@ class ConfigWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.tabs = QTabWidget()
         self.tag_details = SearchableElementEditor(self)
+        self.column_widget = ColumnSelect(self)
 
 
-        # Populate list and stack
+        #* Populate list and stack
         self.populate_tags()
 
-        # self.column_list = ListEdit(self)
-        # self.main_layout.addWidget(self.column_list)
+        #* Populate column choices
+        self.column_widget.populate(self.plugin_action.gui)
 
         #* Link the layouts elements
-        # self.tabs.addTab(self.main_layout, "Main Layout")
+        self.tabs.addTab(self.column_widget, "Column choice")
         self.tabs.addTab(self.tag_details, "Tag Details")
 
         self.main_layout.addWidget(self.tabs)
@@ -53,9 +55,7 @@ class ConfigWidget(QWidget):
         self.setLayout(self.main_layout)
 
     def populate_tags(self):
-        db = tag_util.get_db(self.plugin_action.gui)
-
-        tags = tag_util.Tag.build_tags(db)
+        tags = tag_util.Tag.build_tags(self.plugin_action.gui)
         for tag in tags:
             tag_widget = TagEdit(self)
             tag_widget.title.setText(f'Settings for tag: \'{tag.display_name}\'\nfrom column: \'{tag.collection_name}\'')
@@ -69,6 +69,9 @@ class ConfigWidget(QWidget):
             self.tag_details.add_element(tag.display_name, tag_widget)
 
     def save_settings(self):
+        #* Sace the settings for selected columns
+        self.column_widget.save()
+
         #* Save the settings for the tag details
 
         #* Cop the tags from the prefs
@@ -242,5 +245,71 @@ class TagEdit(QWidget):
         self.main_layout.addWidget(self.title)
         self.main_layout.addWidget(self.name_aliases)
         self.main_layout.addWidget(self.add_tags)
+        self.main_layout.addStretch()
 
         self.setLayout(self.main_layout)
+
+class ColumnSelect(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        #* create the layout elements
+        self.main_layout = QVBoxLayout()
+
+        self.main_layout.setSpacing(5)  # Space between widgets
+
+        #* Link the layouts elements
+        self.setLayout(self.main_layout)
+
+    def populate(self, gui: GUI):
+        self.selections = dict()
+
+        #* Add tags
+        #* create the layout elements
+        layout = QHBoxLayout()
+        lable = QLabel('tags')
+        check = QCheckBox()
+
+        #check.stateChanged.connect(self.save)
+
+        self.selections['tags'] = check
+
+        #* Link the layouts elements
+        layout.addWidget(lable)
+        layout.addWidget(check)
+
+        self.main_layout.addLayout(layout)
+
+        #* Add custom columns
+        for name, data in tag_util.get_custom_column(gui).items():
+            if data.get('datatype', '') != 'text':
+                continue
+
+            #* create the layout elements
+            layout = QHBoxLayout()
+            lable = QLabel(name)
+            check = QCheckBox()
+
+            #check.stateChanged.connect(self.save)
+
+            self.selections[name] = check
+
+            #* Link the layouts elements
+            layout.addWidget(lable)
+            layout.addWidget(check)
+
+            self.main_layout.addLayout(layout)
+
+        self.main_layout.addStretch()
+
+        for column in prefs['column_list']:
+            if column in self.selections:
+                self.selections[column].setChecked(True)
+
+    def save(self):
+        result = list()
+        for name, check in self.selections.items():
+            if check.isChecked():
+                result.append(name)
+
+        prefs['column_list'] = result
