@@ -7,12 +7,12 @@ try:
     from qt.core import (Qt, QWidget, QGridLayout, QLabel, QPushButton, QUrl,
                           QGroupBox, QComboBox, QVBoxLayout, QCheckBox,
                           QLineEdit, QTabWidget, QAbstractItemView,
-                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget, QSpinBox)
+                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget, QSpinBox, QFrame)
 except ImportError:
     from PyQt5.Qt import (Qt, QWidget, QGridLayout, QLabel, QPushButton, QUrl,
                           QGroupBox, QComboBox, QVBoxLayout, QCheckBox,
                           QLineEdit, QTabWidget,QAbstractItemView,
-                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget, QSpinBox)
+                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget, QSpinBox, QFrame)
 
 #* This is where all preferences for this plugin will be stored
 #* Remember that this name (i.e. plugins/interface_demo) is also
@@ -262,7 +262,19 @@ class ColumnSelect(QWidget):
 
         self.main_layout.setSpacing(5)  # Space between widgets
 
+        header = QHBoxLayout()
+        header.addWidget(QLabel('Coulmn name'))
+        header.addWidget(QLabel('Include?'))
+        header.addWidget(QLabel('Priority'))
+
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setFrameShadow(QFrame.Sunken)
+        separator.setLineWidth(1)
+
         #* Link the layouts elements
+        self.main_layout.addLayout(header)
+        self.main_layout.addWidget(separator)
         self.setLayout(self.main_layout)
 
     def populate(self, gui: GUI):
