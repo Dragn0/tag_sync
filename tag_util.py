@@ -76,14 +76,17 @@ class TagRules:
         current_tags: list = [current_display_tag.lower() for current_display_tag in current_display_tags]
 
         #* Apply the alias restriction
+        tags_to_remove = list()
         for current_tag in current_tags:
             for tag in self.tags.values():
                 if current_tag in tag.name_aliases:
-                    current_tags.remove(current_tag)
+                    tags_to_remove.append(current_tag)
 
-                    if tag.name not in current_tags:
+                    if tag.name not in current_tag:
                         current_tags.append(tag.name)
                     break
+
+        current_tags = [current_tag for current_tag in current_tags if current_tag not in tags_to_remove]
 
         #* Apply the add tags rule
         tags_to_add = list()
@@ -112,7 +115,11 @@ class TagRules:
 
         #* Apply the orderd tags to the book
         for key, value in ordered_tags.items():
-            book.set(key, value)
+            if len(value) <= 0:
+                value.append('') #* An empty array dosent overwrite for some rason
+                book.set(key, value)
+            else:
+                book.set(key, value)
 
         #* Return the book
         return book
