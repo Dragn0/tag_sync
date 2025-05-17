@@ -36,7 +36,6 @@ class TagSyncPlugin(InterfaceAction):
         self.create_menu_action(self.menu, "Tag Sync selected", "Tag Sync selected", icon=None, shortcut=None, description='Run Tag Sync for selected books', triggered=self.sync_for_selected_books, shortcut_name=None, persist_shortcut=False)
         self.create_menu_action(self.menu, "Tag Sync All", "Tag Sync All", icon=None, shortcut=None, description='Run Tag Sync for all books', triggered=self.sync_for_all_books, shortcut_name=None, persist_shortcut=False)
         self.create_menu_action(self.menu, "Tag Sync settings", "Tag Sync settings", icon=None, shortcut=None, description=None, triggered=lambda: self.interface_action_base_plugin.do_user_config(self.gui), shortcut_name=None, persist_shortcut=False)
-        self.create_menu_action(self.menu, "Test", "Test", icon=None, shortcut=None, description=None, triggered=lambda: helper.test(self.gui), shortcut_name=None, persist_shortcut=False)
 
     def apply_settings(self):
         pass
@@ -54,7 +53,8 @@ class TagSyncPlugin(InterfaceAction):
         #* Get all books from the library
         selected_books = db.all_book_ids()
 
-        self.tag_sync(selected_books)
+        if helper.Dialog.get().question('Sync Tags for all books', f'You are about to change metadata for {len(selected_books)} books: continue?'):
+            self.tag_sync(selected_books)
 
     def tag_sync(self, selected_books: list):
         db = helper.get_db(self.gui)

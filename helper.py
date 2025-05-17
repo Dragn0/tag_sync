@@ -1,10 +1,8 @@
-from . import config, tag_util
+from . import config
 from calibre.db.cache import Cache as DB
 from calibre.gui2 import info_dialog, question_dialog, warning_dialog, error_dialog
 from calibre.gui2.ui import Main as GUI
-from dataclasses import asdict
 from typing import Optional
-import json
 
 def get_db(gui: GUI) -> DB:
     return gui.current_db.new_api
@@ -28,14 +26,6 @@ def get_all_field_values(db: DB, field_name: str) -> list[(int, str)]:
     return fields
 
 
-def test(gui: GUI):
-    tag_rules = tag_util.TagRules.build_tag_rules(gui)
-
-    test_value = asdict(tag_rules)
-
-    Dialog.get().info('json output', f'{type(test_value)}', f'{json.dumps(test_value, indent=4)}')
-
-
 class Dialog:
     _instance = None
 
@@ -44,27 +34,27 @@ class Dialog:
 
     def info(self, title:str, msg: str, detail_msg: Optional[str]=None):
         if detail_msg:
-            info_dialog(self.gui, title, msg, detail_msg, show=True, only_copy_details=True)
+            return info_dialog(self.gui, title, msg, detail_msg, show=True, only_copy_details=True)
         else:
-            info_dialog(self.gui, title, msg, show=True)
+            return info_dialog(self.gui, title, msg, show=True)
 
     def question(self, title:str, msg: str, detail_msg: Optional[str]=None):
         if detail_msg:
-            question_dialog(self.gui, title, msg, detail_msg, show=True, only_copy_details=True)
+            return question_dialog(self.gui, title, msg, detail_msg)
         else:
-            question_dialog(self.gui, title, msg, show=True)
+            return question_dialog(self.gui, title, msg)
 
     def warning(self, title:str, msg: str, detail_msg: Optional[str]=None):
         if detail_msg:
-            warning_dialog(self.gui, title, msg, detail_msg, show=True, only_copy_details=True)
+            return warning_dialog(self.gui, title, msg, detail_msg, show=True, only_copy_details=True)
         else:
-            warning_dialog(self.gui, title, msg, show=True)
+            return warning_dialog(self.gui, title, msg, show=True)
 
     def error(self, title:str, msg: str, detail_msg: Optional[str]=None):
         if detail_msg:
-            error_dialog(self.gui, title, msg, detail_msg, show=True, only_copy_details=True)
+            return error_dialog(self.gui, title, msg, detail_msg, show=True, only_copy_details=True)
         else:
-            error_dialog(self.gui, title, msg, show=True)
+            return error_dialog(self.gui, title, msg, show=True)
 
     @classmethod
     def get(cls):
