@@ -90,8 +90,8 @@ class ConfigWidget(QWidget):
             #* Get the name aliases
             tag_name_aliases = list()
             for name_alias in tag_widget.name_aliases.edits:
-                if name_alias.text().strip() != '':
-                    tag_name_aliases.append(name_alias.text().strip())
+                if name_alias.text().strip().lower() != '':
+                    tag_name_aliases.append(name_alias.text().strip().lower())
 
             #* Get the add tags
             tag_add_tags = list()
