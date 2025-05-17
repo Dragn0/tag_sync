@@ -57,8 +57,7 @@ class ConfigWidget(QWidget):
     def populate_tags(self):
         tags = tag_util.Tag.build_tags(self.plugin_action.gui)
         for tag in tags:
-            tag_widget = TagEdit(self)
-            tag_widget.title.setText(f'Settings for tag: \'{tag.display_name}\'\nfrom column: \'{tag.collection_name}\'')
+            tag_widget = TagEdit(tag, self)
 
             for name_alias in tag.name_aliases:
                 tag_widget.name_aliases.add_row(value=name_alias)
@@ -80,10 +79,14 @@ class ConfigWidget(QWidget):
         #* Save the settings for the tag details
         for i in range(self.tag_details.list_widget.count()):
             item = self.tag_details.list_widget.item(i)
-            detail = self.tag_details.stack_widget.widget(i)
+            detail: TagEdit = self.tag_details.stack_widget.widget(i)
 
-            tag_name = item.text().lower()
+            tag_obj = detail.tag_obj
+            tag_descriptor = tag_obj.get_descriptor()
             tag_widget = detail
+
+            #* Set display name
+            tags.setdefault(tag_descriptor, dict())['display_name'] = tag_obj.display_name
 
             #* Get the name aliases
             tag_name_aliases = list()
@@ -99,19 +102,19 @@ class ConfigWidget(QWidget):
 
             #* Save the tag alias, if there are none, remove the tag from the prefs
             if len(tag_name_aliases) > 0:
-                tags.setdefault(tag_name, dict())['name_aliases'] = tag_name_aliases
+                tags.setdefault(tag_descriptor, dict())['name_aliases'] = tag_name_aliases
             else:
-                tags.setdefault(tag_name, dict()).pop('name_aliases', None)
+                tags.setdefault(tag_descriptor, dict()).pop('name_aliases', None)
 
             #* Save the add tags, if there are none, remove the tag from the prefs
             if len(tag_add_tags) > 0:
-                tags.setdefault(tag_name, dict())['add_tags'] = tag_add_tags
+                tags.setdefault(tag_descriptor, dict())['add_tags'] = tag_add_tags
             else:
-                tags.setdefault(tag_name, dict()).pop('add_tags', None)
+                tags.setdefault(tag_descriptor, dict()).pop('add_tags', None)
 
             #* If there are no name aliases and no add tags, remove the tag from the prefs
             if len(tag_name_aliases) <= 0 and len(tag_add_tags) <= 0:
-                tags.pop(tag_name, None)
+                tags.pop(tag_descriptor, None)
 
         #* Reassign the tags to the prefs, else the save to disc is not triggered
         prefs['tags'] = tags
@@ -232,12 +235,14 @@ class ListEdit(QWidget):
 
 
 class TagEdit(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, tag_obj: tag_util.Tag, parent=None):
         super().__init__(parent)
+
+        self.tag_obj: tag_util.Tag = tag_obj
 
         #* create the layout elements
         self.main_layout = QVBoxLayout()
-        self.title = QLabel()
+        self.title = QLabel(f'Settings for tag: \'{tag_obj.display_name}\'\nfrom column: \'{tag_obj.collection_name}\'')
         self.name_aliases = ListEdit(self, 'Name aliases')
         self.add_tags = ListEdit(self, 'Add tags')
 

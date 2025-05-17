@@ -4,26 +4,31 @@ from calibre.gui2 import info_dialog, question_dialog, warning_dialog
 from calibre.gui2.ui import Main as GUI
 from calibre.utils.config import JSONConfig
 from dataclasses import asdict, dataclass
-from typing import Self
+from typing import Self, Optional
 import json
 
 @dataclass
 class Tag:
+    id             : Optional[int]
     collection_name: str
-    display_name      : str
-    name              : str
-    name_aliases      : list[str]
-    add_tags          : list[str]
+    display_name   : str
+    name           : str
+    name_aliases   : list[str]
+    add_tags       : list[str]
 
-    def __init__(self, display_name: str, collection: str):
-        self.collection_name: str          = collection
-        self.display_name      : str       = display_name
-        self.name              : str       = display_name.lower()
-        self.name_aliases      : list[str] = list()
-        self.add_tags          : list[str] = list()
+    def __init__(self, display_name: str, collection: str, id: Optional[int]):
+        self.id             : Optional[int] = id
+        self.collection_name: str           = collection
+        self.display_name   : str           = display_name
+        self.name           : str           = display_name.lower()
+        self.name_aliases   : list[str]     = list()
+        self.add_tags       : list[str]     = list()
 
     def is_part_of_sub_collection(self) -> bool:
         return self.collection_name != 'tags'
+
+    def get_descriptor(self):
+        return f'{self.collection_name}:{self.id}'
 
     @classmethod
     def build_tags(cls, gui: GUI) -> list[Self]:
@@ -37,14 +42,14 @@ class Tag:
         #* Get the list of custom columns
         columns = get_selected_columns(gui)
         for column in columns:
-            column_values = db.all_field_names(column)
-            for column_value in column_values:
-                tag = Tag(column_value, column)
+            column_values = get_all_field_values(db, column)
+            for value_id, value_name in column_values:
+                tag = Tag(value_name, column, value_id)
 
-                for name_alias in tag_settigns.get(tag.name, dict()).get('name_aliases', list()):
+                for name_alias in tag_settigns.get(tag.get_descriptor(), dict()).get('name_aliases', list()):
                     tag.name_aliases.append(name_alias)
 
-                for add_tag in tag_settigns.get(tag.name, dict()).get('add_tags', list()):
+                for add_tag in tag_settigns.get(tag.get_descriptor(), dict()).get('add_tags', list()):
                     tag.add_tags.append(add_tag)
 
                 result.append(tag)
@@ -144,6 +149,11 @@ def get_selected_columns(gui: GUI) -> list:
     prefs = JSONConfig('plugins/tag_sync')
     return [name for name in column_names if name in prefs['column_list']]
 
+def get_all_field_values(db: DB, field_name: str) -> list[(int, str)]:
+    id_map = db.fields[field_name].table.id_map
+    fields = [(id, id_map[id]) for id in db.fields[field_name]]
+    return fields
+
 def get_db(gui: GUI) -> DB:
     return gui.current_db.new_api
 
@@ -170,7 +180,7 @@ def add_add_tags_recursive(tag_rules: TagRules, tag: Tag, add_list: list[str], m
 
         if not tag_found:
             #* Create new tag in the collection of the parent tag
-            new_tag = Tag(add_tag_display_name, tag.collection_name)
+            new_tag = Tag(add_tag_display_name, tag.collection_name, None)
             tag_rules.tags[new_tag.name] = new_tag
 
             #* Add new tag to add_list
