@@ -51,7 +51,7 @@ class TagSyncActionBase(InterfaceActionBase):
         #* top of the module as importing the config class will also cause the
         #* GUI libraries to be loaded, which we do not want when using calibre
         #* from the command line
-        from calibre_plugins.tag_sync.config import ConfigWidget
+        from calibre_plugins.tag_sync.config import ConfigWidget # type: ignore
         ac = self.actual_plugin_
         if ac is not None:
             return ConfigWidget(ac)

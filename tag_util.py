@@ -1,11 +1,10 @@
+from . import helper
 from calibre.db.cache import Cache as DB
 from calibre.ebooks.metadata.book.base import Metadata
-from calibre.gui2 import info_dialog, question_dialog, warning_dialog
 from calibre.gui2.ui import Main as GUI
 from calibre.utils.config import JSONConfig
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from typing import Self, Optional
-import json
 
 @dataclass
 class Tag:
@@ -32,7 +31,7 @@ class Tag:
 
     @classmethod
     def build_tags(cls, gui: GUI) -> list[Self]:
-        db = get_db(gui)
+        db = helper.get_db(gui)
 
         result: list[Self] = list()
 
@@ -40,9 +39,9 @@ class Tag:
         tag_settigns = prefs.get('tags', dict())
 
         #* Get the list of custom columns
-        columns = get_selected_columns(gui)
+        columns = helper.get_selected_columns(gui)
         for column in columns:
-            column_values = get_all_field_values(db, column)
+            column_values = helper.get_all_field_values(db, column)
             for value_id, value_name in column_values:
                 tag = Tag(value_name, column, value_id)
 
@@ -127,35 +126,6 @@ class TagRules:
             tag_rules.tags[tag.name] = tag
 
         return tag_rules
-
-
-def test(gui: GUI):
-    tag_rules = TagRules.build_tag_rules(gui)
-
-
-    test_value = asdict(tag_rules)
-
-
-    info_dialog(gui, 'json output', f'{type(test_value)}', f'{json.dumps(test_value, indent=4)}', show=True, only_copy_details=True)
-
-def get_custom_column(gui: GUI) -> dict:
-    return gui.library_view.model().custom_columns
-
-def get_selected_columns(gui: GUI) -> list:
-    column_names: list = list(get_custom_column(gui).keys())
-
-    column_names.append('tags')
-
-    prefs = JSONConfig('plugins/tag_sync')
-    return [name for name in column_names if name in prefs['column_list']]
-
-def get_all_field_values(db: DB, field_name: str) -> list[(int, str)]:
-    id_map = db.fields[field_name].table.id_map
-    fields = [(id, id_map[id]) for id in db.fields[field_name]]
-    return fields
-
-def get_db(gui: GUI) -> DB:
-    return gui.current_db.new_api
 
 def add_add_tags_recursive(tag_rules: TagRules, tag: Tag, add_list: list[str], max_recursion: int = 30):
     if max_recursion <= 0:

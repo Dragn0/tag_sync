@@ -1,9 +1,7 @@
-from calibre.gui2 import question_dialog, warning_dialog
+from . import tag_util
+from calibre.gui2.ui import Main as GUI
 from calibre.utils.config import JSONConfig
 import bisect
-from calibre.gui2.ui import Main as GUI
-
-from . import tag_util
 
 try:
     from qt.core import (Qt, QWidget, QGridLayout, QLabel, QPushButton, QUrl,

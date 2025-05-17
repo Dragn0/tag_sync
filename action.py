@@ -1,5 +1,4 @@
-from . import tag_util
-from calibre.gui2 import info_dialog, question_dialog, warning_dialog
+from . import helper, tag_util
 from calibre.gui2.actions import InterfaceAction
 from calibre.utils.config import JSONConfig
 from qt.core import QToolButton, QMenu
@@ -29,10 +28,13 @@ class TagSyncPlugin(InterfaceAction):
     prefs = JSONConfig('plugins/tag_sync')
 
     def genesis(self):
+        #* Create Dialog helper
+        helper.Dialog.create(self.gui)
+
         self.menu = QMenu(self.gui)
         self.qaction.setMenu(self.menu)
 
-        icon = get_icons('images/label.png', 'Tag Sync')
+        icon = get_icons('images/label.png', 'Tag Sync') # type: ignore
         self.qaction.setIcon(icon)
 
         self.qaction.triggered.connect(self.sync_for_selected_books)
@@ -66,7 +68,7 @@ class TagSyncPlugin(InterfaceAction):
 
         #* If no books are selected, show a warning
         if not selected_books:
-            warning_dialog(self.gui, _('No Books Selected'), _('Please select books to apply the tag.'), show=True)
+            helper.Dialog.get().warning('No Books Selected', 'Please select books to apply the tag.')
             return
 
         tag_rules = tag_util.TagRules.build_tag_rules(self.gui)
@@ -76,7 +78,7 @@ class TagSyncPlugin(InterfaceAction):
             book = tag_rules.apply_to_book(book)
             db.set_metadata(book_id, book)
 
-        info_dialog(self.gui, _('Tag Sync'), _('Tag Sync completed successfully.'), show=True)
+        helper.Dialog.get().info('Tag Sync', 'Tag Sync completed successfully.')
 
     def get_all_elements_from_custom_column(self, custom_column_name: str) -> set:
         #* Check if the custom column exists and is of type 'text'
