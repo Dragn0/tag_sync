@@ -41,7 +41,7 @@ class TagSyncPlugin(InterfaceAction):
         self.create_menu_action(self.menu, "Tag Sync selected", "Tag Sync selected", icon=None, shortcut=None, description='Run Tag Sync for selected books', triggered=self.sync_for_selected_books, shortcut_name=None, persist_shortcut=False)
         self.create_menu_action(self.menu, "Tag Sync All", "Tag Sync All", icon=None, shortcut=None, description='Run Tag Sync for all books', triggered=self.sync_for_all_books, shortcut_name=None, persist_shortcut=False)
         self.create_menu_action(self.menu, "Tag Sync settings", "Tag Sync settings", icon=None, shortcut=None, description=None, triggered=lambda: self.interface_action_base_plugin.do_user_config(self.gui), shortcut_name=None, persist_shortcut=False)
-        self.create_menu_action(self.menu, "Test", "Test", icon=None, shortcut=None, description=None, triggered=lambda: tag_util.test(self.gui), shortcut_name=None, persist_shortcut=False)
+        self.create_menu_action(self.menu, "Test", "Test", icon=None, shortcut=None, description=None, triggered=lambda: helper.test(self.gui), shortcut_name=None, persist_shortcut=False)
 
     def apply_settings(self):
         #* Reset the prefs variable to the new settings
@@ -64,7 +64,7 @@ class TagSyncPlugin(InterfaceAction):
         self.tag_sync(selected_books)
 
     def tag_sync(self, selected_books: list):
-        db = tag_util.get_db(self.gui)
+        db = helper.get_db(self.gui)
 
         #* If no books are selected, show a warning
         if not selected_books:

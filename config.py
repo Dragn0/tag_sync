@@ -1,4 +1,4 @@
-from . import tag_util
+from . import helper, tag_util
 from calibre.gui2.ui import Main as GUI
 from calibre.utils.config import JSONConfig
 import bisect
@@ -284,7 +284,7 @@ class ColumnSelect(QWidget):
         self.main_layout.addLayout(layout)
 
         #* Add custom columns
-        for name, data in tag_util.get_custom_column(gui).items():
+        for name, data in helper.get_custom_column(gui).items():
             if data.get('datatype', '') != 'text':
                 continue
 
