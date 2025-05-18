@@ -22,16 +22,7 @@ class Tag:
         self.name           : str           = display_name.lower()
         self.name_aliases   : list[str]     = list()
         self.add_tags       : list[str]     = list()
-
-        #* Try spliting the display name into alias and add_part 'alias (add_part)'
-        #* and adding the parts to the lists
-        match = re.match(r"^([^\(]*?)\(([^\)]*?)\)\s*$", self.display_name)
-        if match:
-            part1 = match.group(1)
-            part2 = match.group(2)
-
-            self.name_aliases.append(part1.strip().lower())
-            self.add_tags.append(part2.strip())
+        self.split_tag      : bool          = True
 
     def is_part_of_sub_collection(self) -> bool:
         return self.collection_name != 'tags'
@@ -67,6 +58,20 @@ class Tag:
                         for add_tag in tag_settings_data.get('add_tags', list()):
                             if not add_tag in tag.add_tags:
                                 tag.add_tags.append(add_tag)
+
+                        if not tag_settings_data.get('split_tag_auto', True):
+                            tag.split_tag = False
+
+                #* Try spliting the display name into alias and add_part 'alias (add_part)'
+                #* and adding the parts to the lists
+                if tag.split_tag:
+                    match = re.match(r"^([^\(]*?)\(([^\)]*?)\)\s*$", tag.display_name)
+                    if match:
+                        part1 = match.group(1)
+                        part2 = match.group(2)
+
+                        tag.name_aliases.append(part1.strip().lower())
+                        tag.add_tags.append(part2.strip())
 
                 #* Find duplicates
                 duplicate_found = False

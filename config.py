@@ -22,7 +22,7 @@ except ImportError:
 prefs = JSONConfig('plugins/tag_sync')
 
 #* Set defaults
-prefs.defaults['columns'] = {'tags': {'include': True, 'prio': 0}}
+prefs.defaults['columns'] = {'tags': {'include': True, 'prio': 0, 'split_tag_auto': True}}
 
 
 class ConfigWidget(QWidget):
@@ -206,6 +206,9 @@ class SearchableTagEditor(SearchableElementEditor):
                 if add_tag.text().strip() != '':
                     tag_add_tags.append(add_tag.text().strip())
 
+            #* Get split_tag
+            tag_split_tag = tag_widget.split_tag.isChecked()
+
             #* Save the tag alias, if there are none, remove the tag from the prefs
             if len(tag_name_aliases) > 0:
                 pref_tags.setdefault(tag_descriptor, dict())['name_aliases'] = tag_name_aliases
@@ -218,9 +221,16 @@ class SearchableTagEditor(SearchableElementEditor):
             else:
                 pref_tags.setdefault(tag_descriptor, dict()).pop('add_tags', None)
 
-            #* If there are no name aliases and no add tags, remove the tag from the prefs
-            if len(tag_name_aliases) <= 0 and len(tag_add_tags) <= 0:
+            #* Save split_tag_auto
+            if tag_split_tag:
+                pref_tags.setdefault(tag_descriptor, dict()).pop('split_tag_auto', None)
+            else:
+                pref_tags.setdefault(tag_descriptor, dict())['split_tag_auto'] = False
+
+            #* Remove entry if all settings are the default
+            if len(tag_name_aliases) <= 0 and len(tag_add_tags) <= 0 and tag_split_tag:
                 pref_tags.pop(tag_descriptor, None)
+
 
         #* Remove entries that aren't tags anymore
         pref_tags_to_remove: list[str] = list()
@@ -298,11 +308,20 @@ class TagEdit(QWidget):
         #* create the layout elements
         self.main_layout = QVBoxLayout()
         self.title = QLabel(f'Settings for tag: \'{tag_obj.display_name}\'\nfrom column: \'{tag_obj.collection_name}\'')
+        self.split_tag_layout = QHBoxLayout()
+        self.split_tag_label = QLabel('Split tag automatically?')
+        self.split_tag = QCheckBox()
         self.name_aliases = ListEdit(self, 'Name aliases')
         self.add_tags = ListEdit(self, 'Add tags')
 
+        self.split_tag.setChecked(tag_obj.split_tag)
+
         #* Link the layouts elements
+        self.split_tag_layout.addWidget(self.split_tag_label)
+        self.split_tag_layout.addWidget(self.split_tag)
+        self.split_tag_layout.addStretch()
         self.main_layout.addWidget(self.title)
+        self.main_layout.addLayout(self.split_tag_layout)
         self.main_layout.addWidget(self.name_aliases)
         self.main_layout.addWidget(self.add_tags)
         self.main_layout.addStretch()
