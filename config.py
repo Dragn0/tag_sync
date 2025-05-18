@@ -275,7 +275,7 @@ class ListEdit(QWidget):
         #* create the main layout elements
         main_layout = QHBoxLayout(self)
         column_name_edit = QLineEdit(value, self)
-        del_button = QPushButton("Del", self)
+        del_button = QPushButton("Delete", self)
 
         #* design the del button
         del_button.setStyleSheet("background-color: red; color: white;")
