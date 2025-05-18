@@ -112,7 +112,7 @@ class TagRules:
 
                     if tag.name not in current_tag:
                         current_tags.append(tag.name)
-                    break
+                    #* Don't break' to include all aliases if multiple with the same name exist
 
         current_tags = [current_tag for current_tag in current_tags if current_tag not in tags_to_remove]
 
@@ -173,6 +173,10 @@ def add_add_tags_recursive(tag_rules: TagRules, tag: Tag, add_list: list[str], m
 
         #* For all tag object of the tag_rules
         for find_tag in tag_rules.tags.values():
+            if find_tag == tag:
+                #* Skip the same tag
+                continue
+
             #* Test if the current tag is the right one
             if add_tag_name == find_tag.name or add_tag_name in find_tag.name_aliases:
                 #* Add found tag to add_list
