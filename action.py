@@ -71,6 +71,11 @@ class TagSyncPlugin(InterfaceAction):
             book = tag_rules.apply_to_book(book)
             db.set_metadata(book_id, book)
 
+        #* Refresh the GUI after metadata changes
+        selected_books = self.gui.library_view.get_selected_ids()
+        self.gui.refresh_all()
+        self.gui.library_view.select_rows(selected_books)
+
         helper.Dialog.get().info('Tag Sync', 'Tag Sync completed successfully.')
 
     def get_all_elements_from_custom_column(self, custom_column_name: str) -> set:
