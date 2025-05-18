@@ -1,6 +1,7 @@
 from . import helper, tag_util
 from calibre.gui2.ui import Main as GUI
 from calibre.utils.config import JSONConfig
+from PyQt5.QtWidgets import QApplication
 import bisect
 import re
 
@@ -311,20 +312,32 @@ class TagEdit(QWidget):
 
         #* create the layout elements
         self.main_layout = QVBoxLayout()
+        self.title_layout = QHBoxLayout()
         self.title = QLabel(f'Settings for tag: \'{tag_obj.display_name}\'\nFrom column: \'{tag_obj.collection_name}\'\nUsed by {tag_obj.in_book_count} {"book" if tag_obj.in_book_count == 1 else "books"}')
+        self.copy_button = QToolButton()
         self.split_tag_layout = QHBoxLayout()
         self.split_tag_label = QLabel('Split tag automatically?')
         self.split_tag = QCheckBox()
         self.name_aliases = ListEdit(self, 'Name aliases')
         self.add_tags = ListEdit(self, 'Add tags')
 
+        #* Set split tag default
         self.split_tag.setChecked(tag_obj.split_tag)
 
+        #* Link copy button click event
+        self.copy_button.setIcon(get_icons('images/copy.png', 'Tag Sync')) # type: ignore
+        self.copy_button.clicked.connect(lambda: QApplication.clipboard().setText(tag_obj.display_name))
+
         #* Link the layouts elements
+        self.title_layout.addWidget(self.title)
+        self.title_layout.addStretch()
+        self.title_layout.addWidget(self.copy_button, alignment=Qt.AlignTop | Qt.AlignRight)
+
         self.split_tag_layout.addWidget(self.split_tag_label)
         self.split_tag_layout.addWidget(self.split_tag)
         self.split_tag_layout.addStretch()
-        self.main_layout.addWidget(self.title)
+
+        self.main_layout.addLayout(self.title_layout)
 
         #* Hide the split_tag checkbox if split is not possible
         if re.match(r'[^\(]*\(([^\)]*?)\).*', tag_obj.name):

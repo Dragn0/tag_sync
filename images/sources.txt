@@ -1,1 +1,2 @@
 label.png: https://www.flaticon.com/authors/bqlqn
+copy.png: https://www.flaticon.com/search?word=copy
