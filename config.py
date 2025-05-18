@@ -2,6 +2,7 @@ from . import helper, tag_util
 from calibre.gui2.ui import Main as GUI
 from calibre.utils.config import JSONConfig
 import bisect
+import re
 
 try:
     from qt.core import (Qt, QWidget, QGridLayout, QLabel, QPushButton, QUrl,
@@ -321,7 +322,11 @@ class TagEdit(QWidget):
         self.split_tag_layout.addWidget(self.split_tag)
         self.split_tag_layout.addStretch()
         self.main_layout.addWidget(self.title)
-        self.main_layout.addLayout(self.split_tag_layout)
+
+        #* Hide the split_tag checkbox if split is not possible
+        if re.match(r'[^\(]*\(([^\)]*?)\).*', tag_obj.name):
+            self.main_layout.addLayout(self.split_tag_layout)
+
         self.main_layout.addWidget(self.name_aliases)
         self.main_layout.addWidget(self.add_tags)
         self.main_layout.addStretch()
