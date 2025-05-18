@@ -67,11 +67,13 @@ class Tag:
                 if tag.split_tag:
                     match = re.match(r"^([^\(]*?)\(([^\)]*?)\)\s*$", tag.display_name)
                     if match:
-                        part1 = match.group(1)
-                        part2 = match.group(2)
+                        match1_alias = match.group(1).strip().lower()
+                        match2_add = match.group(2).strip()
 
-                        tag.name_aliases.append(part1.strip().lower())
-                        tag.add_tags.append(part2.strip())
+                        if not match1_alias in tag.name_aliases:
+                            tag.name_aliases.append(match1_alias)
+                        if not match2_add in tag.add_tags:
+                            tag.add_tags.append(match2_add)
 
                 #* Find duplicates
                 duplicate_found = False
