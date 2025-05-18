@@ -7,12 +7,12 @@ try:
     from qt.core import (Qt, QWidget, QGridLayout, QLabel, QPushButton, QUrl,
                           QGroupBox, QComboBox, QVBoxLayout, QCheckBox,
                           QLineEdit, QTabWidget, QAbstractItemView,
-                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget, QSpinBox, QFrame)
+                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget, QSpinBox, QFrame, QScrollArea)
 except ImportError:
     from PyQt5.Qt import (Qt, QWidget, QGridLayout, QLabel, QPushButton, QUrl,
                           QGroupBox, QComboBox, QVBoxLayout, QCheckBox,
                           QLineEdit, QTabWidget,QAbstractItemView,
-                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget, QSpinBox, QFrame)
+                          QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget, QSpinBox, QFrame, QScrollArea)
 
 #* This is where all preferences for this plugin will be stored
 #* Remember that this name (i.e. plugins/interface_demo) is also
@@ -30,16 +30,17 @@ class ConfigWidget(QWidget):
         QWidget.__init__(self)
 
         self.plugin_action = plugin_action
+        self.tags = tag_util.Tag.build_tags(self.plugin_action.gui)
 
         #* Create the main layout elements
         self.main_layout = QVBoxLayout()
         self.tabs = QTabWidget()
-        self.tag_details = SearchableElementEditor(self)
+        self.tag_details = SearchableTagEditor(self.tags, self)
         self.column_widget = ColumnSelect(self)
 
 
         #* Populate list and stack
-        self.populate_tags()
+        self.populate_tags(self.tags)
 
         #* Populate column choices
         self.column_widget.populate(self.plugin_action.gui)
@@ -52,72 +53,20 @@ class ConfigWidget(QWidget):
 
         self.setLayout(self.main_layout)
 
-    def populate_tags(self):
-        tags = tag_util.Tag.build_tags(self.plugin_action.gui)
+    def populate_tags(self, tags):
         for tag in tags:
-            tag_widget = TagEdit(tag, self)
+            index = bisect.bisect_left(self.tag_details.label_list, tag.name)
 
-            for name_alias in tag.name_aliases:
-                tag_widget.name_aliases.add_row(value=name_alias)
-
-            for add_tag in tag.add_tags:
-                tag_widget.add_tags.add_row(value=add_tag)
-
-            self.tag_details.add_element(tag.display_name, tag_widget)
+            self.tag_details.label_list.insert(index, tag.name)
+            self.tag_details.list_widget.insertItem(index, tag.display_name)
+            self.tag_details.stack_widget.insertWidget(index, QWidget())
 
     def save_settings(self):
         #* Sace the settings for selected columns
         self.column_widget.save()
 
         #* Save the settings for the tag details
-
-        #* Cop the tags from the prefs
-        tags = dict()
-
-        #* Save the settings for the tag details
-        for i in range(self.tag_details.list_widget.count()):
-            item = self.tag_details.list_widget.item(i)
-            detail: TagEdit = self.tag_details.stack_widget.widget(i)
-
-            tag_obj = detail.tag_obj
-            tag_descriptor = tag_obj.get_descriptor()
-            tag_widget = detail
-
-            #* Set names
-            tags.setdefault(tag_descriptor, dict())['display_name'] = tag_obj.display_name
-            tags.setdefault(tag_descriptor, dict())['name'] = tag_obj.name
-
-            #* Get the name aliases
-            tag_name_aliases = list()
-            for name_alias in tag_widget.name_aliases.edits:
-                if name_alias.text().strip().lower() != '':
-                    tag_name_aliases.append(name_alias.text().strip().lower())
-
-            #* Get the add tags
-            tag_add_tags = list()
-            for add_tag in tag_widget.add_tags.edits:
-                if add_tag.text().strip() != '':
-                    tag_add_tags.append(add_tag.text().strip())
-
-            #* Save the tag alias, if there are none, remove the tag from the prefs
-            if len(tag_name_aliases) > 0:
-                tags.setdefault(tag_descriptor, dict())['name_aliases'] = tag_name_aliases
-            else:
-                tags.setdefault(tag_descriptor, dict()).pop('name_aliases', None)
-
-            #* Save the add tags, if there are none, remove the tag from the prefs
-            if len(tag_add_tags) > 0:
-                tags.setdefault(tag_descriptor, dict())['add_tags'] = tag_add_tags
-            else:
-                tags.setdefault(tag_descriptor, dict()).pop('add_tags', None)
-
-            #* If there are no name aliases and no add tags, remove the tag from the prefs
-            if len(tag_name_aliases) <= 0 and len(tag_add_tags) <= 0:
-                tags.pop(tag_descriptor, None)
-
-        #* Reassign the tags to the prefs, else the save to disc is not triggered
-        prefs['tags'] = tags
-
+        self.tag_details.save()
 
     def validate(self):
         return True
@@ -149,7 +98,7 @@ class SearchableElementEditor(QWidget):
         left_layout.addWidget(self.list_widget)
 
         self.main_layout.addLayout(left_layout, 1)
-        self.main_layout.addWidget(self.stack_widget, 3)
+        self.main_layout.addWidget(self.stack_widget, 2)
 
         self.setLayout(self.main_layout)
 
@@ -179,6 +128,113 @@ class SearchableElementEditor(QWidget):
         selected_item = self.list_widget.currentItem()
         if selected_item:
             self.list_widget.scrollToItem(selected_item, QAbstractItemView.PositionAtCenter)
+
+
+class SearchableTagEditor(SearchableElementEditor):
+    def __init__(self, tags: list[tag_util.Tag], parent=None):
+        super().__init__(parent)
+
+        self.tags = tags
+        self.loaded_tags: list = list()
+        self.loaded_ids: set[int] = set()
+
+        self.list_widget.currentRowChanged.connect(self.lazy_load_tag)
+
+    def add_label(self, label):
+        #* Add a new item to the list and stack
+        index = bisect.bisect_left(self.label_list, label.lower())
+
+        self.list_widget.insertItem(index, label)
+        self.stack_widget.insertWidget(index, QWidget())
+        self.label_list.insert(index, label.lower())
+
+    def lazy_load_tag(self, index: int):
+        cur_widget = self.stack_widget.widget(index)
+
+        if not index in self.loaded_ids:
+            tag_name: str = self.label_list[index]
+
+            for tag in self.tags:
+                if tag.name == tag_name:
+                    break
+
+            scroll = QScrollArea(self.stack_widget)
+            scroll.setWidgetResizable(True)
+
+            tag_widget = TagEdit(tag, scroll)
+
+            for name_alias in tag.name_aliases:
+                tag_widget.name_aliases.add_row(value=name_alias)
+
+            for add_tag in tag.add_tags:
+                tag_widget.add_tags.add_row(value=add_tag)
+
+            scroll.setWidget(tag_widget)
+
+            self.stack_widget.removeWidget(self.stack_widget.widget(index))
+            self.stack_widget.insertWidget(index, scroll)
+
+            self.loaded_ids.add(index)
+            self.loaded_tags.insert(index, tag_widget)
+
+        self.stack_widget.setCurrentIndex(index)
+
+    def save(self):
+        #* Cop the tags from the prefs
+        pref_tags: dict = prefs['tags'].copy()
+
+        #* Save the settings for the tag details
+        for i in range(len(self.loaded_tags)):
+            tag_widget: TagEdit = self.loaded_tags[i]
+
+            tag_obj = tag_widget.tag_obj
+            tag_descriptor = tag_obj.get_descriptor()
+
+            #* Set names
+            pref_tags.setdefault(tag_descriptor, dict())['display_name'] = tag_obj.display_name
+            pref_tags.setdefault(tag_descriptor, dict())['name'] = tag_obj.name
+
+            #* Get the name aliases
+            tag_name_aliases = list()
+            for name_alias in tag_widget.name_aliases.edits:
+                if name_alias.text().strip().lower() != '':
+                    tag_name_aliases.append(name_alias.text().strip().lower())
+
+            #* Get the add tags
+            tag_add_tags = list()
+            for add_tag in tag_widget.add_tags.edits:
+                if add_tag.text().strip() != '':
+                    tag_add_tags.append(add_tag.text().strip())
+
+            #* Save the tag alias, if there are none, remove the tag from the prefs
+            if len(tag_name_aliases) > 0:
+                pref_tags.setdefault(tag_descriptor, dict())['name_aliases'] = tag_name_aliases
+            else:
+                pref_tags.setdefault(tag_descriptor, dict()).pop('name_aliases', None)
+
+            #* Save the add tags, if there are none, remove the tag from the prefs
+            if len(tag_add_tags) > 0:
+                pref_tags.setdefault(tag_descriptor, dict())['add_tags'] = tag_add_tags
+            else:
+                pref_tags.setdefault(tag_descriptor, dict()).pop('add_tags', None)
+
+            #* If there are no name aliases and no add tags, remove the tag from the prefs
+            if len(tag_name_aliases) <= 0 and len(tag_add_tags) <= 0:
+                pref_tags.pop(tag_descriptor, None)
+
+        #* Remove entries that aren't tags anymore
+        pref_tags_to_remove: list[str] = list()
+        for pref_tag_name, pref_tag_data in pref_tags.items():
+            if not any(pref_tag_data['name'] == tag.name for tag in self.tags):
+                pref_tags_to_remove.append(pref_tag_name)
+
+        for remove_name in pref_tags_to_remove:
+            pref_tags.pop(remove_name)
+
+
+        #* Reassign the tags to the prefs, else the save to disc is not triggered
+        prefs['tags'] = pref_tags
+
 
 
 class ListEdit(QWidget):
