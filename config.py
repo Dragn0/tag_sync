@@ -299,6 +299,9 @@ class ListEdit(QWidget):
         #* Add the QLineEdit widgets to the column_edits list
         self.edits.append(column_name_edit)
 
+        #* Set focus on new element
+        column_name_edit.setFocus()
+
 
 class TagEdit(QWidget):
     def __init__(self, tag_obj: tag_util.Tag, parent=None):
