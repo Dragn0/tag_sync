@@ -23,6 +23,7 @@ class Tag:
         self.name_aliases   : list[str]     = list()
         self.add_tags       : list[str]     = list()
         self.split_tag      : bool          = True
+        self.in_book_count  : int           = 0
 
     def is_part_of_sub_collection(self) -> bool:
         return self.collection_name != 'tags'
@@ -47,6 +48,7 @@ class Tag:
                 tag = Tag(value_name, column, value_id)
 
                 tag.prio = column_settings.get(column, dict()).get('prio', 1)
+                tag.in_book_count = len(db.books_for_field(column, value_id))
 
                 #* Load data from Settings
                 for tag_setting_descriptor, tag_settings_data in tag_settigns.items():
@@ -81,8 +83,12 @@ class Tag:
                     if tag.name == result.name:
                         #* Duplicate found
                         if tag.prio > result.prio:
+                            tag.in_book_count += result.in_book_count
+
                             results.remove(result)
                             results.append(tag)
+                        else:
+                            result.in_book_count += tag.in_book_count
 
                         duplicate_found = True
                         break

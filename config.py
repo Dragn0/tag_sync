@@ -308,7 +308,7 @@ class TagEdit(QWidget):
 
         #* create the layout elements
         self.main_layout = QVBoxLayout()
-        self.title = QLabel(f'Settings for tag: \'{tag_obj.display_name}\'\nfrom column: \'{tag_obj.collection_name}\'')
+        self.title = QLabel(f'Settings for tag: \'{tag_obj.display_name}\'\nFrom column: \'{tag_obj.collection_name}\'\nUsed by {tag_obj.in_book_count} {"book" if tag_obj.in_book_count == 1 else "books"}')
         self.split_tag_layout = QHBoxLayout()
         self.split_tag_label = QLabel('Split tag automatically?')
         self.split_tag = QCheckBox()
