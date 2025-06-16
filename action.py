@@ -1,4 +1,4 @@
-from . import helper, tag_util
+from . import config, helper, tag_util
 from calibre.gui2.actions import InterfaceAction
 from qt.core import QToolButton, QMenu
 import logging
@@ -36,6 +36,12 @@ class TagSyncPlugin(InterfaceAction):
         self.create_menu_action(self.menu, "Tag Sync selected", "Tag Sync selected", icon=None, shortcut=None, description='Run Tag Sync for selected books', triggered=self.sync_for_selected_books, shortcut_name=None, persist_shortcut=False)
         self.create_menu_action(self.menu, "Tag Sync All", "Tag Sync All", icon=None, shortcut=None, description='Run Tag Sync for all books', triggered=self.sync_for_all_books, shortcut_name=None, persist_shortcut=False)
         self.create_menu_action(self.menu, "Tag Sync settings", "Tag Sync settings", icon=None, shortcut=None, description=None, triggered=lambda: self.interface_action_base_plugin.do_user_config(self.gui), shortcut_name=None, persist_shortcut=False)
+
+    def initialization_complete(self):
+        config.set_prefs(self.gui.library_path)
+
+    def library_changed(self, db):
+        config.set_prefs(self.gui.library_path)
 
     def apply_settings(self):
         pass

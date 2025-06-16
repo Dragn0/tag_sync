@@ -4,6 +4,7 @@ from calibre.utils.config import JSONConfig
 from PyQt5.QtWidgets import QApplication
 import bisect
 import re
+import json
 
 try:
     from qt.core import (Qt, QWidget, QGridLayout, QLabel, QPushButton, QUrl,
@@ -17,14 +18,14 @@ except ImportError:
                           QTableWidget, QHBoxLayout, QSize, QToolButton, QListWidget, QStackedWidget, QSpinBox, QFrame, QScrollArea)
 
 #* This is where all preferences for this plugin will be stored
-#* Remember that this name (i.e. plugins/interface_demo) is also
-#* in a global namespace, so make it as unique as possible.
-#* You should always prefix your config file name with plugins/,
-#* so as to ensure you don't accidentally clobber a calibre config file
-prefs = JSONConfig('plugins/tag_sync')
+#* prefs for this addon are library dependent and get reloaded if the library is switched
+#* The File gets stored alongside your main DB file at your library path
+prefs: JSONConfig = None
 
-#* Set defaults
-prefs.defaults['columns'] = {'tags': {'include': True, 'prio': 0, 'split_tag_auto': True}}
+def set_prefs(library_path):
+    global prefs
+    prefs = JSONConfig('tag_sync', library_path)
+    prefs.defaults['columns'] = {'tags': {'include': True, 'prio': 0, 'split_tag_auto': True}}
 
 
 class ConfigWidget(QWidget):
@@ -183,7 +184,7 @@ class SearchableTagEditor(SearchableElementEditor):
 
     def save(self):
         #* Cop the tags from the prefs
-        pref_tags: dict = prefs['tags'].copy()
+        pref_tags: dict = prefs.get('tags', dict()).copy()
 
         #* Save the settings for the tag details
         for i in range(len(self.loaded_tags)):
