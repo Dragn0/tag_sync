@@ -123,7 +123,7 @@ class TagRules:
                 if current_tag in tag.name_aliases:
                     tags_to_remove.append(current_tag)
 
-                    if tag.name not in current_tag:
+                    if tag.name not in current_tags:
                         current_tags.append(tag.name)
                     #* Don't break' to include all aliases if multiple with the same name exist
 
