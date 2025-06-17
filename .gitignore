@@ -1,2 +1,27 @@
-#Environment files
+# Environment files
 *.env
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Calibre plugin build artifacts
+*.zip
+*.egg-info/
+dist/
+build/
+
+# VS Code settings
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test output/logs
+*.log
+
+# Python virtual environments
+venv/
+.env/
