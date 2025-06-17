@@ -359,10 +359,54 @@ class ColumnSelect(QWidget):
 
         self.main_layout.setSpacing(5)  # Space between widgets
 
+        change_warning = QLabel('⚠️ If you make changes in this tab, make sure to apply the settings before editing Tag Details.')
+        change_warning.setToolTip(
+            '''
+            <html>
+                Tags from included columns will only be visible and editable in the \'Tag Detail\' Tab
+                after you apply and reload the settings window.
+            </html>
+            '''
+        )
+        change_warning.setStyleSheet(
+            """
+            QLabel {
+                color: #FFCC00;  /* Yellow */
+                font-size: 16px;
+                font-weight: bold;
+            }
+            """
+        )
+
         header = QHBoxLayout()
-        header.addWidget(QLabel('Coulmn name'))
-        header.addWidget(QLabel('Include?'))
-        header.addWidget(QLabel('Priority'))
+
+        header_label_1 = QLabel('Coulmn name')
+        header_label_2 = QLabel('Include?')
+        header_label_2.setToolTip(
+            '''
+            <html>
+                Determines whether this column is included in tag syncing.<br />
+                If not selected, the Tag Sync add-on will completely ignore this column.
+            </html>
+            '''
+        )
+        header_label_3 = QLabel('Priority')
+        header_label_3.setToolTip(
+            '''
+            <html>
+                Sets the priority of the column.<br />
+                If a tag appears in multiple columns,
+                the one with the higher priority will take precedence.<br />
+                If two columns have the same priority,
+                the order in which they are loaded determines which
+                one takes over — this may be random.
+            </html>
+            '''
+        )
+
+        header.addWidget(header_label_1)
+        header.addWidget(header_label_2)
+        header.addWidget(header_label_3)
 
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
@@ -370,6 +414,8 @@ class ColumnSelect(QWidget):
         separator.setLineWidth(1)
 
         #* Link the layouts elements
+        self.main_layout.addWidget(change_warning)
+        self.main_layout.addSpacing(20)
         self.main_layout.addLayout(header)
         self.main_layout.addWidget(separator)
         self.setLayout(self.main_layout)
